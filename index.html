@@ -380,15 +380,9 @@
   </div>
 
   <script>
-    const appointmentStorageKey = "medicare-appointments";
-    const activityStorageKey = "medicare-activity-log";
-    const initialAppointments = [
-      { id: 1, patient: "Adiba", patientId: "0001", doctor: "Dr. Karim", department: "Cardiology", date: "2026-09-20", time: "09:00" },
-      { id: 2, patient: "Fatima", patientId: "0002", doctor: "Dr. Karim", department: "Cardiology", date: "2026-09-20", time: "09:30" },
-      { id: 3, patient: "Tushar", patientId: "0003", doctor: "Dr. Rezaul", department: "Oncology", date: "2026-09-20", time: "10:00" },
-      { id: 4, patient: "Afsari", patientId: "0004", doctor: "Dr. Rashed", department: "Gynacology", date: "2026-09-20", time: "10:30" },
-      { id: 5, patient: "Nishi", patientId: "0005", doctor: "Dr. Rezaul", department: "Oncology", date: "2026-09-20", time: "11:00" }
-    ];
+    let appointments = [];
+    let activityLog = [];
+    let editingAppointmentId = null;
 
     const appointmentsBody = document.getElementById("appointments-body");
     const completedAppointmentsBody = document.getElementById("completed-appointments-body");
@@ -400,56 +394,35 @@
     const appointmentSubmitButton = document.getElementById("appointment-submit-button");
     const activityBody = document.getElementById("activity-body");
 
-    let appointments = JSON.parse(localStorage.getItem(appointmentStorageKey)) || initialAppointments;
-    let activityLog = JSON.parse(localStorage.getItem(activityStorageKey)) || initialAppointments.map((appointment) => ({
-      action: "Scheduled",
-      patient: appointment.patient,
-      doctor: appointment.doctor,
-      date: appointment.date,
-      time: appointment.time,
-      loggedAt: "Sep 19, 2026"
-    }));
-    let editingAppointmentId = null;
-
     function formatTime(time) {
+      if (!time) return "";
       const [hours, minutes] = time.split(":");
       const hour = Number(hours) % 12 || 12;
       return `${hour}:${minutes} ${Number(hours) >= 12 ? "PM" : "AM"}`;
     }
 
     function formatDate(date) {
-      return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      if (!date) return "";
+      const datePart = String(date).split("T")[0];
+      const parsedDate = new Date(`${datePart}T00:00:00`);
+      if (Number.isNaN(parsedDate.getTime())) return "Invalid date";
+      return parsedDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     }
 
     function renderActivityLog() {
-      activityBody.innerHTML = activityLog.length
-        ? activityLog.slice(0, 20).map((entry) => `
+      const completeActivity = activityLog.filter((entry) =>
+        entry.patientName && entry.doctorName && entry.appointmentDate
+      );
+      activityBody.innerHTML = completeActivity.length
+        ? completeActivity.slice(0, 20).map((entry) => `
           <tr>
             <td><span class="activity-action activity-${entry.action.toLowerCase()}">${entry.action}</span></td>
-            <td>${entry.patient}</td>
-            <td>${entry.doctor}</td>
-            <td>${formatDate(entry.date)} · ${formatTime(entry.time)}</td>
-            <td>${entry.loggedAt}</td>
+            <td>${entry.patientName}</td>
+            <td>${entry.doctorName}</td>
+            <td>${formatDate(entry.appointmentDate)} · ${formatTime(entry.appointmentTime)}</td>
+            <td>${entry.loggedAt || "Unknown time"}</td>
           </tr>`).join("")
         : `<tr><td class="empty-state" colspan="5">No activity recorded yet.</td></tr>`;
-    }
-
-    function saveActivityLog() {
-      localStorage.setItem(activityStorageKey, JSON.stringify(activityLog));
-    }
-
-    function logActivity(action, appointment) {
-      activityLog.unshift({
-        action,
-        patient: appointment.patient,
-        doctor: appointment.doctor,
-        date: appointment.date,
-        time: appointment.time,
-        loggedAt: new Date().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
-      });
-      activityLog = activityLog.slice(0, 20);
-      saveActivityLog();
-      renderActivityLog();
     }
 
     function renderAppointmentRows(appointmentList, emptyMessage) {
@@ -458,15 +431,15 @@
           const status = appointment.status || "Scheduled";
           return `
           <tr>
-            <td><div class="person-cell"><div class="avatar avatar-soft-blue">${appointment.patient.charAt(0)}</div><div><strong>${appointment.patient}</strong><small>ID #${appointment.patientId}</small></div></div></td>
+            <td><div class="person-cell"><div class="avatar avatar-soft-blue">${appointment.patient.charAt(0)}</div><div><strong>${appointment.patient}</strong><small>ID #${String(appointment.patientId || "").padStart(4, "0")}</small></div></div></td>
             <td>${appointment.doctor}</td>
             <td>${appointment.department}</td>
             <td>${formatDate(appointment.date)}</td>
             <td>${formatTime(appointment.time)}</td>
-              <td><span class="pill pill-${status.toLowerCase()}">${status}</span></td>
-              <td><div class="appointment-actions">${status === "Scheduled" ? `<button class="complete-button" type="button" data-complete-id="${appointment.id}" aria-label="Mark ${appointment.patient}'s appointment completed">Completed</button>` : ""}<button class="reschedule-button" type="button" data-reschedule-id="${appointment.id}" aria-label="Reschedule ${appointment.patient}'s appointment">Reschedule</button><button class="delete-button" type="button" data-delete-id="${appointment.id}" aria-label="Delete ${appointment.patient}'s appointment">Delete</button></div></td>
-            </tr>`;
-          }).join("")
+            <td><span class="pill pill-${status.toLowerCase()}">${status}</span></td>
+            <td><div class="appointment-actions">${status === "Scheduled" ? `<button class="complete-button" type="button" data-complete-id="${appointment.id}" aria-label="Mark ${appointment.patient}'s appointment completed">Completed</button>` : ""}<button class="reschedule-button" type="button" data-reschedule-id="${appointment.id}" aria-label="Reschedule ${appointment.patient}'s appointment">Reschedule</button><button class="delete-button" type="button" data-delete-id="${appointment.id}" aria-label="Delete ${appointment.patient}'s appointment">Delete</button></div></td>
+          </tr>`;
+        }).join("")
         : `<tr><td class="empty-state" colspan="7">${emptyMessage}</td></tr>`;
     }
 
@@ -480,8 +453,28 @@
       document.getElementById("appointment-nav-count").textContent = scheduledAppointments.length;
     }
 
-    function saveAppointments() {
-      localStorage.setItem(appointmentStorageKey, JSON.stringify(appointments));
+    async function loadAppointments() {
+      try {
+        const response = await fetch('/api/appointments');
+        if (!response.ok) throw new Error('Failed to load appointments');
+        appointments = await response.json();
+        renderAppointments();
+      } catch (error) {
+        console.error(error);
+        appointmentsBody.innerHTML = '<tr><td class="empty-state" colspan="7">Unable to load appointments from the database.</td></tr>';
+      }
+    }
+
+    async function loadActivityLog() {
+      try {
+        const response = await fetch('/api/activity');
+        if (!response.ok) throw new Error('Failed to load activity');
+        activityLog = await response.json();
+        renderActivityLog();
+      } catch (error) {
+        console.error(error);
+        activityBody.innerHTML = '<tr><td class="empty-state" colspan="5">Unable to load activity log.</td></tr>';
+      }
     }
 
     function openModal(appointment = null) {
@@ -517,75 +510,90 @@
       if (event.target === appointmentModal) closeModal();
     });
 
-    appointmentForm.addEventListener("submit", (event) => {
+    appointmentForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const formData = new FormData(appointmentForm);
       const [doctor, department] = formData.get("doctor").split("|");
       const date = formData.get("date");
       const time = formData.get("time");
-      const appointmentExists = appointments.some((appointment) => appointment.id !== editingAppointmentId && appointment.doctor === doctor && appointment.date === date && appointment.time === time);
+      const patient = formData.get("patient").trim();
 
-      if (appointmentExists) {
-        formMessage.textContent = "That doctor is already booked at this time. Choose another time.";
+      if (!patient || !doctor || !date || !time) {
+        formMessage.textContent = "Please fill in all appointment fields.";
         return;
       }
 
-      const updatedAppointment = {
-        id: editingAppointmentId || Date.now(),
-        patient: formData.get("patient").trim(),
-        patientId: editingAppointmentId ? appointments.find((appointment) => appointment.id === editingAppointmentId).patientId : String(appointments.length + 1).padStart(4, "0"),
-        doctor,
-        department,
-        date,
-        time,
-        status: "Scheduled"
-      };
-      if (editingAppointmentId) {
-        appointments = appointments.map((appointment) => appointment.id === editingAppointmentId ? updatedAppointment : appointment);
-        logActivity("Rescheduled", updatedAppointment);
-      } else {
-        appointments.push(updatedAppointment);
-        logActivity("Scheduled", updatedAppointment);
+      const payload = { patient, doctor, department, date, time };
+
+      try {
+        const url = editingAppointmentId ? `/api/appointments/${editingAppointmentId}` : '/api/appointments';
+        const method = editingAppointmentId ? 'PUT' : 'POST';
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Unable to save appointment');
+        }
+
+        await loadAppointments();
+        await loadActivityLog();
+        closeModal();
+      } catch (error) {
+        formMessage.textContent = error.message;
       }
-      appointments.sort((first, second) => `${first.date}${first.time}`.localeCompare(`${second.date}${second.time}`));
-      saveAppointments();
-      renderAppointments();
-      closeModal();
     });
 
-    function handleAppointmentAction(event) {
+    async function handleAppointmentAction(event) {
       const completeButton = event.target.closest("[data-complete-id]");
       if (completeButton) {
-        const appointment = appointments.find((item) => String(item.id) === completeButton.dataset.completeId);
-        if (!appointment) return;
-        const completedAppointment = { ...appointment, status: "Completed" };
-        appointments = appointments.map((item) => item.id === appointment.id ? completedAppointment : item);
-        logActivity("Completed", completedAppointment);
-        saveAppointments();
-        renderAppointments();
+        const id = completeButton.dataset.completeId;
+        try {
+          const response = await fetch(`/api/appointments/${id}/complete`, { method: 'PATCH' });
+          if (!response.ok) throw new Error('Unable to complete appointment');
+          await loadAppointments();
+          await loadActivityLog();
+        } catch (error) {
+          console.error(error);
+        }
         return;
       }
+
       const rescheduleButton = event.target.closest("[data-reschedule-id]");
       if (rescheduleButton) {
         const appointment = appointments.find((item) => String(item.id) === rescheduleButton.dataset.rescheduleId);
         if (appointment) openModal(appointment);
         return;
       }
+
       const deleteButton = event.target.closest("[data-delete-id]");
       if (!deleteButton) return;
       const appointment = appointments.find((item) => String(item.id) === deleteButton.dataset.deleteId);
       if (!appointment || !window.confirm(`Delete ${appointment.patient}'s appointment?`)) return;
-      logActivity("Deleted", appointment);
-      appointments = appointments.filter((item) => String(item.id) !== deleteButton.dataset.deleteId);
-      saveAppointments();
-      renderAppointments();
+
+      try {
+        const response = await fetch(`/api/appointments/${deleteButton.dataset.deleteId}`, { method: 'DELETE' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.error || `Unable to delete appointment (HTTP ${response.status})`);
+        }
+        await loadAppointments();
+        await loadActivityLog();
+      } catch (error) {
+        console.error(error);
+        window.alert(error.message || "Unable to delete appointment.");
+      }
     }
 
     appointmentsBody.addEventListener("click", handleAppointmentAction);
     completedAppointmentsBody.addEventListener("click", handleAppointmentAction);
 
-    renderAppointments();
-    renderActivityLog();
+    loadAppointments();
+    loadActivityLog();
   </script>
 </body>
 </html>
