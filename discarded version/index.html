@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hospital Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <p class="eyebrow">Healthcare Dashboard</p>
+      <h1>Hospital Management System</h1>
+    </header>
+
+    <section class="dashboard-tools" aria-label="Dashboard filters">
+      <label class="search-field" for="globalSearch">
+        <span>Search records</span>
+        <input id="globalSearch" type="search" placeholder="Search by name, ID, phone, email..." autocomplete="off">
+      </label>
+      <label class="filter-field" for="appointmentStatusFilter">
+        <span>Appointment status</span>
+        <select id="appointmentStatusFilter">
+          <option value="all">All statuses</option>
+          <option value="Scheduled">Scheduled</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </label>
+      <button id="resetFilters" class="reset-button" type="button">Reset filters</button>
+      <p id="resultsSummary" class="results-summary" aria-live="polite"></p>
+    </section>
+
+    <main class="dashboard">
+      <section class="section-card">
+        <h2>Patients</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Phone</th>
+                <th>Blood Group</th>
+              </tr>
+            </thead>
+            <tbody id="patientsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2>Doctors</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Doctor ID</th>
+                <th>Name</th>
+                <th>Specialization</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody id="doctorsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2>Appointments</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Appointment ID</th>
+                <th>Patient Name</th>
+                <th>Doctor Name</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <h2>Blood Group Summary</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Blood Group</th>
+                <th>Total Patients</th>
+              </tr>
+            </thead>
+            <tbody id="bloodGroupSummaryBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const patients = [
+      { patientid: 1, name: 'Adiba', age: 21, gender: 'Female', phonenumber: '01743489277', bloodgroup: 'O+' },
+      { patientid: 2, name: 'Fatima', age: 21, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'B+' },
+      { patientid: 3, name: 'Tushar', age: 25, gender: 'Male', phonenumber: '01982384721', bloodgroup: 'A+' },
+      { patientid: 4, name: 'Afsari', age: 23, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'A+' },
+      { patientid: 5, name: 'Nishi', age: 23, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'B+' },
+      { patientid: 6, name: 'Naima', age: 22, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'A+' },
+      { patientid: 7, name: 'Amena', age: 23, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'O+' },
+      { patientid: 8, name: 'Ishraq', age: 27, gender: 'Male', phonenumber: '01982384721', bloodgroup: 'O+' },
+      { patientid: 9, name: 'Sajjad', age: 57, gender: 'Male', phonenumber: '01982384721', bloodgroup: 'A+' },
+      { patientid: 10, name: 'Maria', age: 45, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'AB+' },
+      { patientid: 11, name: 'Nirob', age: 25, gender: 'Male', phonenumber: '01982384721', bloodgroup: 'A+' },
+      { patientid: 12, name: 'Faiza', age: 37, gender: 'Female', phonenumber: '01982384721', bloodgroup: 'A-' },
+      { patientid: 13, name: 'Abrar', age: 29, gender: 'Male', phonenumber: '01982384721', bloodgroup: 'B-' }
+    ];
+
+    const doctors = [
+      { doctorid: 1, name: 'Dr. Karim', specialization: 'Cardiology', email: 'karim@hospital.com' },
+      { doctorid: 2, name: 'Dr. Rezaul', specialization: 'Oncology', email: 'rezaul@hospital.com' },
+      { doctorid: 3, name: 'Dr. Rashed', specialization: 'Gynacology', email: 'rashed@hospital.com' },
+      { doctorid: 4, name: 'Dr. Foysal', specialization: 'Medicine Specialist', email: 'foysal@hospital.com' },
+      { doctorid: 5, name: 'Dr. Jahid', specialization: 'Neurology', email: 'jahid@hospital.com' },
+      { doctorid: 6, name: 'Dr. Sultana', specialization: 'Dermatology', email: 'sultana@hospital.com' }
+    ];
+
+    const appointments = [
+      { appointmentid: 1, patientid: 1, doctorid: 1, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 2, patientid: 2, doctorid: 1, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 3, patientid: 3, doctorid: 2, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 4, patientid: 4, doctorid: 3, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 5, patientid: 5, doctorid: 2, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 6, patientid: 6, doctorid: 4, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 7, patientid: 7, doctorid: 5, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 8, patientid: 8, doctorid: 6, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 9, patientid: 9, doctorid: 4, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 10, patientid: 10, doctorid: 6, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 11, patientid: 11, doctorid: 4, appointmentdate: '2026-09-20', status: 'Scheduled' },
+      { appointmentid: 12, patientid: 12, doctorid: 5, appointmentdate: '2026-09-20', status: 'Scheduled' }
+    ];
+
+    function renderBloodGroupSummary() {
+      const tbody = document.getElementById('bloodGroupSummaryBody');
+      const grouped = patients.reduce((acc, patient) => {
+        const group = patient.bloodgroup;
+        acc[group] = (acc[group] || 0) + 1;
+        return acc;
+      }, {});
+
+      const rows = Object.entries(grouped)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([group, total]) => `
+          <tr>
+            <td>${group}</td>
+            <td>${total}</td>
+          </tr>
+        `)
+        .join('');
+
+      tbody.innerHTML = rows;
+    }
+
+    function renderPatients() {
+      const tbody = document.getElementById('patientsTableBody');
+      const filteredPatients = patients.filter(patient => matchesSearch(patient));
+      tbody.innerHTML = filteredPatients.length ? filteredPatients.map(patient => `
+        <tr>
+          <td>${patient.patientid}</td>
+          <td>${patient.name}</td>
+          <td>${patient.age}</td>
+          <td>${patient.gender}</td>
+          <td>${patient.phonenumber}</td>
+          <td>${patient.bloodgroup}</td>
+        </tr>
+      `).join('') : emptyRow(6, 'No matching patients found.');
+      return filteredPatients.length;
+    }
+
+    function renderDoctors() {
+      const tbody = document.getElementById('doctorsTableBody');
+      const filteredDoctors = doctors.filter(doctor => matchesSearch(doctor));
+      tbody.innerHTML = filteredDoctors.length ? filteredDoctors.map(doctor => `
+        <tr>
+          <td>${doctor.doctorid}</td>
+          <td>${doctor.name}</td>
+          <td>${doctor.specialization}</td>
+          <td>${doctor.email}</td>
+        </tr>
+      `).join('') : emptyRow(4, 'No matching doctors found.');
+      return filteredDoctors.length;
+    }
+
+    function renderAppointments() {
+      const tbody = document.getElementById('appointmentsTableBody');
+      const selectedStatus = document.getElementById('appointmentStatusFilter').value;
+      const filteredAppointments = appointments.filter(appointment => {
+        const matchesStatus = selectedStatus === 'all' || appointment.status === selectedStatus;
+        const patient = patients.find(item => item.patientid === appointment.patientid);
+        const doctor = doctors.find(item => item.doctorid === appointment.doctorid);
+        return matchesStatus && matchesSearch({
+          ...appointment,
+          patientname: patient?.name || '',
+          doctorname: doctor?.name || ''
+        });
+      });
+      tbody.innerHTML = filteredAppointments.length ? filteredAppointments.map(appointment => `
+        <tr>
+          <td>${appointment.appointmentid}</td>
+          <td>${patients.find(item => item.patientid === appointment.patientid)?.name || 'Unknown patient'}</td>
+          <td>${doctors.find(item => item.doctorid === appointment.doctorid)?.name || 'Unknown doctor'}</td>
+          <td>${appointment.appointmentdate}</td>
+          <td><span class="status ${appointment.status.toLowerCase()}">${appointment.status}</span></td>
+        </tr>
+      `).join('') : emptyRow(5, 'No matching appointments found.');
+      return filteredAppointments.length;
+    }
+
+    function matchesSearch(record) {
+      const searchTerm = document.getElementById('globalSearch').value.trim().toLowerCase();
+      return !searchTerm || Object.values(record).some(value => String(value).toLowerCase().includes(searchTerm));
+    }
+
+    function emptyRow(columnCount, message) {
+      return `<tr><td class="empty-state" colspan="${columnCount}">${message}</td></tr>`;
+    }
+
+    function renderFilteredTables() {
+      const patientCount = renderPatients();
+      const doctorCount = renderDoctors();
+      const appointmentCount = renderAppointments();
+      document.getElementById('resultsSummary').textContent =
+        `${patientCount} patients, ${doctorCount} doctors, ${appointmentCount} appointments shown`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderBloodGroupSummary();
+      renderFilteredTables();
+      document.getElementById('globalSearch').addEventListener('input', renderFilteredTables);
+      document.getElementById('appointmentStatusFilter').addEventListener('change', renderFilteredTables);
+      document.getElementById('resetFilters').addEventListener('click', () => {
+        document.getElementById('globalSearch').value = '';
+        document.getElementById('appointmentStatusFilter').value = 'all';
+        renderFilteredTables();
+      });
+    });
+  </script>
+</body>
+</html>
